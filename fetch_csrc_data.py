@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 从资本市场电子化信息披露平台获取新发行基金数据
-使用 Python 3.12 标准库 urllib
+使用 urllib 和浏览器自动化两种方式
 """
 
 import os
@@ -12,6 +12,14 @@ import urllib.parse
 from datetime import datetime, timedelta
 import sys
 import csv
+
+# 浏览器自动化模块
+try:
+    from browser_fetcher import fetch_csrc_data_browser
+    BROWSER_AVAILABLE = True
+except ImportError:
+    BROWSER_AVAILABLE = False
+    print("浏览器自动化模块不可用，将仅使用urllib方式")
 
 
 def fetch_csrc_data():
@@ -52,8 +60,7 @@ def fetch_csrc_data():
     api_url = f"{base_url}?aoData={ao_data_str}&_={timestamp_ms_str}"
 
     try:
-        print(f"正在获取数据从: {base_url}")
-        print(f"请求参数: {ao_data_str}")
+        print(f"正在获取数据从: {api_url}")
 
         # 创建请求对象
         req = urllib.request.Request(api_url)
@@ -266,8 +273,25 @@ def main():
     print("开始获取 CSRC 基金数据...")
     print("数据来源: 资本市场电子化信息披露平台")
 
-    # 获取 API 数据
-    raw_data = fetch_csrc_data()
+    raw_data = None
+
+    # 首先尝试使用浏览器自动化方式
+    if BROWSER_AVAILABLE and os.environ.get('USE_BROWSER_FETCHER', 'true').lower() == 'true':
+        print("尝试使用浏览器自动化获取数据...")
+        try:
+            raw_data = fetch_csrc_data_browser()
+            if raw_data:
+                print(f"浏览器自动化获取成功，共 {len(raw_data)} 条数据")
+            else:
+                print("浏览器自动化获取失败，将尝试urllib方式")
+        except Exception as e:
+            print(f"浏览器自动化出错: {e}")
+            print("将尝试urllib方式")
+
+    # 如果浏览器方式失败，尝试urllib方式
+    if raw_data is None:
+        print("使用urllib方式获取数据...")
+        raw_data = fetch_csrc_data()
 
     if raw_data is None:
         print("获取数据失败，脚本退出")
