@@ -1,9 +1,9 @@
 name: Daily QDII Fund Data Fetch with Email Notification
 
 on:
-  schedule:
+  #schedule:
     # 每天晚上8点运行 (UTC时间 12:00 = 北京时间 20:00)
-    - cron: '0 12 * * *'
+    #- cron: '0 12 * * *'
   # 允许手动触发
   workflow_dispatch:
 
