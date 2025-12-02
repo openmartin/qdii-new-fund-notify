@@ -23,11 +23,6 @@ jobs:
       with:
         python-version: '3.12'
 
-    - name: gabrielbb/xvfb-action
-      uses: GabrielBB/xvfb-action@v1.7
-      with:
-        run: npm test
-
     - name: Setup Chrome
       uses: browser-actions/setup-chrome@latest
 
@@ -38,12 +33,22 @@ jobs:
         pip install -r requirements.txt
 
     - name: Fetch CSRC fund data and save to CSV
+      uses: GabrielBB/xvfb-action@v1.7
       env:
         # GitHub Secrets 配置邮件相关环境变量
         EMAIL_ADDRESS: ${{ secrets.EMAIL_ADDRESS }}
         EMAIL_PASSWORD: ${{ secrets.EMAIL_PASSWORD }}
         EMAIL_PROVIDER: ${{ secrets.EMAIL_PROVIDER }}
-      run: python fetch_csrc_data.py
+      with:
+        run: python fetch_csrc_data.py
+
+#    - name: Fetch CSRC fund data and save to CSV
+#      env:
+#        # GitHub Secrets 配置邮件相关环境变量
+#        EMAIL_ADDRESS: ${{ secrets.EMAIL_ADDRESS }}
+#        EMAIL_PASSWORD: ${{ secrets.EMAIL_PASSWORD }}
+#        EMAIL_PROVIDER: ${{ secrets.EMAIL_PROVIDER }}
+#      run: python fetch_csrc_data.py
 
     - name: Check for changes
       id: verify-changed-files
