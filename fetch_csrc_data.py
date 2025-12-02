@@ -276,7 +276,7 @@ def main():
     raw_data = None
 
     # 首先尝试使用浏览器自动化方式
-    if BROWSER_AVAILABLE and os.environ.get('USE_BROWSER_FETCHER', 'true').lower() == 'true':
+    if BROWSER_AVAILABLE and os.environ.get('USE_BROWSER_FETCHER', 'false').lower() == 'true':
         print("尝试使用浏览器自动化获取数据...")
         try:
             raw_data = fetch_csrc_data_browser()
