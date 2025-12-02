@@ -31,7 +31,7 @@ class CSRCBrowserFetcher:
         chrome_options = Options()
 
         # 无头模式（在服务器上运行）
-        chrome_options.add_argument('--headless')
+        # chrome_options.add_argument('--headless')
         chrome_options.add_argument('--no-sandbox')
         chrome_options.add_argument('--disable-dev-shm-usage')
         chrome_options.add_argument('--disable-gpu')
@@ -41,9 +41,6 @@ class CSRCBrowserFetcher:
         chrome_options.add_argument('--disable-blink-features=AutomationControlled')
         chrome_options.add_experimental_option("excludeSwitches", ["enable-automation"])
         chrome_options.add_experimental_option('useAutomationExtension', False)
-
-        # 设置用户代理
-        chrome_options.add_argument('--user-agent=Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36')
 
         # 安装并设置ChromeDriver
         service = Service(ChromeDriverManager().install())
@@ -64,12 +61,12 @@ class CSRCBrowserFetcher:
             self.setup_browser()
 
             # 先访问详情页面建立会话和cookies
-            detail_url = "http://eid.csrc.gov.cn/fund/disclose/fund_detail.do?fundId=16190&rnd=0.22446018178033178"
+            detail_url = "http://eid.csrc.gov.cn/fund/disclose/index.html"
             print(f"正在访问详情页面: {detail_url}")
             self.driver.get(detail_url)
 
             # 等待页面加载获取必要的cookies和session信息
-            time.sleep(5)
+            time.sleep(20)
 
             # 计算日期范围
             current_date = datetime.now()
@@ -123,49 +120,61 @@ class CSRCBrowserFetcher:
             timestamp_ms_str = str(int(time.time() * 1000))
             api_url = f"{base_url}?aoData={ao_data_str}&_={timestamp_ms_str}"
 
-            # 使用浏览器执行JavaScript发起POST请求
-            js_code = f"""
-            return new Promise((resolve, reject) => {{
-                const xhr = new XMLHttpRequest();
-                xhr.open('GET', '{api_url}', true);
-                
-                xhr.onreadystatechange = function() {{
-                    if (xhr.readyState === 4) {{
-                        if (xhr.status === 200) {{
-                            try {{
-                                const response = JSON.parse(xhr.responseText);
-                                resolve(response);
-                            }} catch (e) {{
-                                resolve(xhr.responseText);
-                            }}
-                        }} else {{
-                            reject(new Error(`HTTP ${{xhr.status}}: ${{xhr.statusText}}`));
-                        }}
-                    }}
-                }};
+            # 设置更长的脚本超时时间（60秒）
+            self.driver.set_script_timeout(60)
 
-                xhr.onerror = function() {{
-                    reject(new Error('Network error'));
-                }};
-            }});
+            # 使用浏览器执行JavaScript发起GET请求
+            # 注意：使用execute_async_script来处理异步操作
+            js_code = f"""
+            var callback = arguments[0];
+            const xhr = new XMLHttpRequest();
+            xhr.open('GET', '{api_url}', true);
+            xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
+
+
+            xhr.onreadystatechange = function() {{
+                if (xhr.readyState === 4) {{
+                    if (xhr.status === 200) {{
+                        try {{
+                            const response = JSON.parse(xhr.responseText);
+                            callback(response);
+                        }} catch (e) {{
+                            callback(xhr.responseText);
+                        }}
+                    }} else {{
+                        callback({{error: `HTTP ${{xhr.status}}: ${{xhr.statusText}}`}});
+                    }}
+                }}
+            }};
+
+            xhr.onerror = function() {{
+                callback({{error: 'Network error'}});
+            }};
+
+            xhr.send();
             """
 
             print(f"正在请求API: {api_url}")
 
-            # 在浏览器中执行JavaScript代码
-            result = self.driver.execute_script(js_code)
-
-            # 等待异步请求完成
-            time.sleep(3)
+            # 在浏览器中执行异步JavaScript代码
+            result = self.driver.execute_async_script(js_code)
 
             # 处理返回结果
             if result:
+                # 检查是否有错误
+                if isinstance(result, dict) and 'error' in result:
+                    print(f"API请求错误: {result['error']}")
+                    return []
+
                 fund_data = self.process_api_response(result)
                 return fund_data
             else:
                 print("API请求返回空结果")
                 return []
 
+        except TimeoutException:
+            print("API请求超时，请检查网络连接或增加超时时间")
+            return []
         except Exception as e:
             print(f"API请求失败: {e}")
             return []
