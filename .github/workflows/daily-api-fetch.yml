@@ -1,0 +1,56 @@
+name: Daily QDII Fund Data Fetch with Email Notification
+
+on:
+  schedule:
+    # 每天上午9点运行 (UTC时间 01:00 = 北京时间 09:00)
+    - cron: '0 1 * * *'
+  # 允许手动触发
+  workflow_dispatch:
+
+jobs:
+  fetch-and-save:
+    runs-on: ubuntu-latest
+    environment: prod
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.12'
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        # 安装依赖（如果需要的话）
+        # pip install pandas
+
+    - name: Fetch CSRC fund data and save to CSV
+      env:
+        # GitHub Secrets 配置邮件相关环境变量
+        EMAIL_ADDRESS: ${{ secrets.EMAIL_ADDRESS }}
+        EMAIL_PASSWORD: ${{ secrets.EMAIL_PASSWORD }}
+        EMAIL_PROVIDER: ${{ secrets.EMAIL_PROVIDER }}
+      run: python fetch_csrc_data.py
+
+    - name: Check for changes
+      id: verify-changed-files
+      run: |
+        if [ -n "$(git status --porcelain)" ]; then
+          echo "changed=true" >> $GITHUB_OUTPUT
+        else
+          echo "changed=false" >> $GITHUB_OUTPUT
+        fi
+
+    - name: Commit and push changes
+      if: steps.verify-changed-files.outputs.changed == 'true'
+      run: |
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
+        git add data/
+        git commit -m "Update QDII fund data - $(date +%Y-%m-%d)" || exit 0
+        git push
