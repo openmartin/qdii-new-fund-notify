@@ -24,7 +24,7 @@ class SimpleEmailNotifier:
 
         # SMTP服务器配置
         self.smtp_configs = {
-            'qq': {'server': 'smtp.qq.com', 'port': 587},
+            'qq': {'server': 'smtp.qq.com', 'port': 456},
             'gmail': {'server': 'smtp.gmail.com', 'port': 587},
             '163': {'server': 'smtp.163.com', 'port': 25},
             'outlook': {'server': 'smtp.office365.com', 'port': 587},
@@ -75,8 +75,7 @@ class SimpleEmailNotifier:
             # 连接SMTP服务器并发送
             config = self.smtp_configs.get(self.email_provider, self.smtp_configs['qq'])
 
-            with smtplib.SMTP(config['server'], config['port']) as server:
-                server.starttls()
+            with smtplib.SMTP_SSL(config['server'], config['port']) as server:
                 server.login(self.sender_email, self.email_password)
                 server.send_message(msg)
 
@@ -92,7 +91,8 @@ class SimpleEmailNotifier:
     def _format_email_content(self, new_funds_data):
         """格式化邮件内容"""
 
-        subject = f"[QDII基金更新] 发现 {len(new_funds_data)} 条新基金数据"
+        current_date = datetime.now().strftime('%Y-%m-%d')
+        subject = f"[QDII基金更新] {current_date} - 发现 {len(new_funds_data)} 条新基金数据"
 
         # 纯文本格式
         body_text = f"""
