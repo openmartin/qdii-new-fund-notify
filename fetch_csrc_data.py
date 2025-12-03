@@ -12,6 +12,15 @@ import urllib.parse
 from datetime import datetime, timedelta
 import sys
 import csv
+import argparse
+
+# 尝试导入 schedule 库，如果没有则使用简单的 sleep 方式
+try:
+    import schedule
+    SCHEDULE_AVAILABLE = True
+except ImportError:
+    SCHEDULE_AVAILABLE = False
+    print("提示: 安装 schedule 库可获得更好的定时任务体验: pip install schedule")
 
 # 浏览器自动化模块
 try:
@@ -268,10 +277,12 @@ def save_fund_data_to_csv(fund_data, filename='data/csrc_fund_data.csv'):
         return False
 
 
-def main():
-    """主函数"""
-    print("开始获取 CSRC 基金数据...")
-    print("数据来源: 资本市场电子化信息披露平台")
+def fetch_and_save_data():
+    """执行一次数据获取和保存的完整流程"""
+    print(f"\n{'='*60}")
+    print(f"开始获取 CSRC 基金数据... {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    print(f"数据来源: 资本市场电子化信息披露平台")
+    print(f"{'='*60}\n")
 
     raw_data = None
 
@@ -294,8 +305,8 @@ def main():
         raw_data = fetch_csrc_data()
 
     if raw_data is None:
-        print("获取数据失败，脚本退出")
-        sys.exit(1)
+        print("❌ 获取数据失败")
+        return False
 
     # 处理数据
     fund_data = process_fund_data(raw_data)
@@ -310,10 +321,110 @@ def main():
     success = save_fund_data_to_csv(fund_data)
 
     if success:
-        print("数据保存成功!")
+        print("✅ 数据保存成功!")
     else:
-        print("数据保存失败!")
-        sys.exit(1)
+        print("❌ 数据保存失败!")
+        return False
+
+    print(f"\n{'='*60}")
+    print(f"任务完成 {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    print(f"{'='*60}\n")
+    return True
+
+
+def run_with_schedule(interval_minutes=30):
+    """使用 schedule 库运行定时任务"""
+    print(f"📅 使用 schedule 库启动定时任务")
+    print(f"⏰ 执行间隔: 每 {interval_minutes} 分钟")
+    print(f"🔄 按 Ctrl+C 停止任务\n")
+
+    # 立即执行一次
+    fetch_and_save_data()
+
+    # 设置定时任务
+    schedule.every(interval_minutes).minutes.do(fetch_and_save_data)
+
+    # 持续运行
+    try:
+        while True:
+            schedule.run_pending()
+            time.sleep(1)
+    except KeyboardInterrupt:
+        print("\n\n⏹️  收到停止信号，退出定时任务")
+
+
+def run_with_simple_loop(interval_minutes=30):
+    """使用简单的循环和 sleep 运行定时任务"""
+    print(f"📅 使用简单循环启动定时任务")
+    print(f"⏰ 执行间隔: 每 {interval_minutes} 分钟")
+    print(f"🔄 按 Ctrl+C 停止任务\n")
+
+    try:
+        while True:
+            # 执行任务
+            fetch_and_save_data()
+
+            # 等待指定时间
+            interval_seconds = interval_minutes * 60
+            print(f"⏳ 等待 {interval_minutes} 分钟后执行下一次任务...")
+            print(f"   下次执行时间: {(datetime.now() + timedelta(minutes=interval_minutes)).strftime('%Y-%m-%d %H:%M:%S')}")
+            time.sleep(interval_seconds)
+
+    except KeyboardInterrupt:
+        print("\n\n⏹️  收到停止信号，退出定时任务")
+
+
+def main():
+    """主函数"""
+    parser = argparse.ArgumentParser(
+        description='从 CSRC 获取新发行基金数据',
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+示例:
+  # 单次执行
+  python fetch_csrc_data.py
+
+  # 每30分钟执行一次（默认）
+  python fetch_csrc_data.py --schedule
+
+  # 每60分钟执行一次
+  python fetch_csrc_data.py --schedule --interval 60
+
+  # 每10分钟执行一次
+  python fetch_csrc_data.py --schedule --interval 10
+        """
+    )
+
+    parser.add_argument(
+        '--schedule',
+        action='store_true',
+        help='启用定时任务模式（持续运行）'
+    )
+
+    parser.add_argument(
+        '--interval',
+        type=int,
+        default=30,
+        help='定时任务执行间隔（分钟），默认30分钟'
+    )
+
+    args = parser.parse_args()
+
+    if args.schedule:
+        # 定时任务模式
+        if args.interval <= 0:
+            print("❌ 错误: 间隔时间必须大于0")
+            sys.exit(1)
+
+        # 优先使用 schedule 库，如果不可用则使用简单循环
+        if SCHEDULE_AVAILABLE:
+            run_with_schedule(args.interval)
+        else:
+            run_with_simple_loop(args.interval)
+    else:
+        # 单次执行模式
+        success = fetch_and_save_data()
+        sys.exit(0 if success else 1)
 
 
 if __name__ == "__main__":
