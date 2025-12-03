@@ -24,7 +24,7 @@ class SimpleEmailNotifier:
 
         # SMTP服务器配置
         self.smtp_configs = {
-            'qq': {'server': 'smtp.qq.com', 'port': 456},
+            'qq': {'server': 'smtp.qq.com', 'port': 465},
             'gmail': {'server': 'smtp.gmail.com', 'port': 587},
             '163': {'server': 'smtp.163.com', 'port': 25},
             'outlook': {'server': 'smtp.office365.com', 'port': 587},
