@@ -79,22 +79,16 @@ class SimpleEmailNotifier:
                 server.login(self.sender_email, self.email_password)
                 # 使用 sendmail 替代 send_message 避免 QQ 邮箱的响应错误
                 server.sendmail(self.sender_email, recipient_emails, msg.as_string())
+                server.quit()
 
             self.logger.info(f"📧 邮件发送成功: {subject}")
             print(f"✅ 基金更新邮件已发送至: {', '.join(recipient_emails)}")
             return True
 
         except smtplib.SMTPException as e:
-            # QQ 邮箱在发送成功后可能返回 (-1, b'\x00\x00\x00')，这实际上表示成功
-            error_str = str(e)
-            if "(-1, b'\\x00\\x00\\x00')" in error_str or error_str == "(-1, b'\\x00\\x00\\x00')":
-                self.logger.info(f"📧 邮件发送成功 (QQ邮箱特殊响应): {subject}")
-                print(f"✅ 基金更新邮件已发送至: {', '.join(recipient_emails)}")
-                return True
-            else:
-                self.logger.error(f"📧 邮件发送失败: {e}")
-                print(f"❌ 邮件发送失败: {e}")
-                return False
+            self.logger.error(f"📧 邮件发送失败: {e}")
+            print(f"❌ 邮件发送失败: {e}")
+            return False
         except Exception as e:
             self.logger.error(f"📧 邮件发送失败: {e}")
             print(f"❌ 邮件发送失败: {e}")
